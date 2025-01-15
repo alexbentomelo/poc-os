@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: poc-api
-  labels:
-    app: poc-api
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -19,18 +18,44 @@ spec:
           image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/poc-api:latest
           ports:
             - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: poc-api-config
+                  key: SPRING_DATASOURCE_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: poc-api-secret
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: poc-api-secret
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_JPA_DATABASE_PLATFORM
+              valueFrom:
+                configMapKeyRef:
+                  name: poc-api-config
+                  key: SPRING_JPA_DATABASE_PLATFORM
           resources:
             limits:
               memory: "512Mi"
               cpu: "500m"
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "prod"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: poc-api-config
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: poc-api-service
+  namespace: default
 spec:
   selector:
     app: poc-api
@@ -39,3 +64,4 @@ spec:
       port: 8080
       targetPort: 8080
   type: LoadBalancer
+
